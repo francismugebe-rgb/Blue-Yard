@@ -1,0 +1,8 @@
+{
+  "name": "BLUEYAD",
+  "description": "A production-ready WhatsApp-like messaging application with real-time chat, group messaging, and media sharing.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
