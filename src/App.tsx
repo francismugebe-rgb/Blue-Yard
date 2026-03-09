@@ -1,6 +1,6 @@
 import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ChatProvider } from './context/ChatContext';
+import { ChatProvider, useChat } from './context/ChatContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Login from './screens/Login';
 import ChatList from './screens/ChatList';

@@ -34,6 +34,35 @@ const users: any[] = [];
 const conversations: any[] = [];
 const messages: any[] = [];
 
+// Pre-populate with default users for testing
+const initUsers = async () => {
+  const adminPassword = await bcrypt.hash("admin123", 10);
+  const bobPassword = await bcrypt.hash("password123", 10);
+  
+  users.push({
+    id: "admin_id",
+    name: "Admin User",
+    email: "admin@blueyad.com",
+    password: adminPassword,
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin",
+    about: "I am the system administrator.",
+    lastSeen: new Date(),
+    isOnline: false,
+  });
+
+  users.push({
+    id: "bob_id",
+    name: "Bob Builder",
+    email: "bob@blueyad.com",
+    password: bobPassword,
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bob",
+    about: "Can we fix it? Yes we can!",
+    lastSeen: new Date(),
+    isOnline: false,
+  });
+};
+initUsers();
+
 // --- AUTH ROUTES ---
 app.post("/api/auth/register", async (req, res) => {
   const { name, email, password } = req.body;
