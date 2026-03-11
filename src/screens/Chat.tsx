@@ -48,7 +48,7 @@ export default function Chat() {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[#222e35] text-center p-8">
         <div className="w-64 h-64 mb-8 opacity-20">
-          <img src="https://whatsapp-desktop.web.app/assets/intro-connection-light.png" alt="Intro" className="w-full h-full object-contain" />
+          <img src="https://whatsapp-desktop.web.app/assets/intro-connection-light.png" alt="Intro" className="w-full h-full object-contain filter hue-rotate-[180deg]" />
         </div>
         <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">BLUEYAD Web</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md leading-relaxed">
@@ -101,7 +101,7 @@ export default function Chat() {
             >
               <div 
                 className={`max-w-[85%] md:max-w-[65%] p-2 rounded-lg shadow-sm relative group ${
-                  isMe ? 'bg-[#d9fdd3] dark:bg-[#005c4b] rounded-tr-none' : 'bg-white dark:bg-[#202c33] dark:text-white rounded-tl-none'
+                  isMe ? 'bg-[#dbeafe] dark:bg-[#1e40af] rounded-tr-none' : 'bg-white dark:bg-[#202c33] dark:text-white rounded-tl-none'
                 }`}
               >
                 {msg.imageUrl && (
@@ -167,7 +167,7 @@ export default function Chat() {
           onClick={handleSend}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-[#54656f] dark:text-[#aebac1]"
         >
-          {inputText.trim() ? <Send size={24} className="text-[#00a884]" /> : <Mic size={24} />}
+          {inputText.trim() ? <Send size={24} className="text-[#2563eb]" /> : <Mic size={24} />}
         </button>
       </div>
     </div>

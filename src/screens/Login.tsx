@@ -39,7 +39,7 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white dark:bg-[#222e35] w-full max-w-md rounded-2xl shadow-xl overflow-hidden"
       >
-        <div className="bg-[#00a884] p-8 text-white text-center">
+        <div className="bg-[#2563eb] p-8 text-white text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-white/20 p-3 rounded-full">
               <MessageCircle size={48} />
@@ -59,7 +59,7 @@ export default function Login() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-[#2a3942] dark:text-white focus:ring-2 focus:ring-[#00a884] outline-none transition-all"
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-[#2a3942] dark:text-white focus:ring-2 focus:ring-[#2563eb] outline-none transition-all"
                 placeholder="John Doe"
                 required
               />
@@ -74,7 +74,7 @@ export default function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-[#2a3942] dark:text-white focus:ring-2 focus:ring-[#00a884] outline-none transition-all"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-[#2a3942] dark:text-white focus:ring-2 focus:ring-[#2563eb] outline-none transition-all"
               placeholder="john@example.com"
               required
             />
@@ -88,7 +88,7 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-[#2a3942] dark:text-white focus:ring-2 focus:ring-[#00a884] outline-none transition-all"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-[#2a3942] dark:text-white focus:ring-2 focus:ring-[#2563eb] outline-none transition-all"
               placeholder="••••••••"
               required
             />
@@ -96,7 +96,7 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white font-bold py-3 rounded-lg shadow-lg transform transition-all active:scale-95"
+            className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold py-3 rounded-lg shadow-lg transform transition-all active:scale-95"
           >
             {isRegister ? 'Create Account' : 'Sign In'}
           </button>
@@ -105,7 +105,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setIsRegister(!isRegister)}
-              className="text-[#00a884] hover:underline text-sm font-medium"
+              className="text-[#2563eb] hover:underline text-sm font-medium"
             >
               {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Create one"}
             </button>

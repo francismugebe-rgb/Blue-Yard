@@ -106,7 +106,7 @@ export default function ChatList() {
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {isSearching ? (
           <div className="py-2">
-            <p className="px-4 py-2 text-xs font-bold text-[#00a884] uppercase tracking-wider">New Chat</p>
+            <p className="px-4 py-2 text-xs font-bold text-[#2563eb] uppercase tracking-wider">New Chat</p>
             {filteredUsers.map(u => (
               <div 
                 key={u.id} 
@@ -139,7 +139,7 @@ export default function ChatList() {
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400 truncate flex-1">{convo.lastMessage}</p>
                   {convo.unreadCount ? (
-                    <span className="bg-[#25d366] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                    <span className="bg-[#3b82f6] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
                       {convo.unreadCount}
                     </span>
                   ) : null}

@@ -2,6 +2,7 @@ import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatProvider, useChat } from './context/ChatContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { motion, AnimatePresence } from 'motion/react';
 import Login from './screens/Login';
 import ChatList from './screens/ChatList';
 import Chat from './screens/Chat';
@@ -45,11 +46,20 @@ function AppContent() {
 
 function ChatOverlay() {
   const { activeConversation } = useChat();
-  if (!activeConversation) return null;
   return (
-    <div className="fixed inset-0 z-[60] bg-white dark:bg-[#0b141a]">
-      <Chat />
-    </div>
+    <AnimatePresence>
+      {activeConversation && (
+        <motion.div 
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed inset-0 z-[60] bg-white dark:bg-[#0b141a]"
+        >
+          <Chat />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
