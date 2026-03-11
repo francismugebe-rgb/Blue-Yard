@@ -20,195 +20,265 @@ const io = new Server(httpServer, {
   },
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "blueyad_secret_key_2024";
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// --- DATABASE CONNECTION ---
+const MONGODB_URI = process.env.MONGODB_URI;
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
+    .then(() => console.log("✅ Connected to MongoDB Atlas"))
+    .catch((err) => console.error("❌ MongoDB connection error:", err));
+}
 
-// --- MOCK DATABASE FOR PREVIEW ---
-// Since we don't have a live MongoDB, we'll use an in-memory store for the demo
-// but structure it so it's easily replaceable with Mongoose.
-const users: any[] = [];
-const conversations: any[] = [];
-const messages: any[] = [];
+// --- MODELS ---
+const UserSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  avatar: String,
+  about: { type: String, default: "Hey there! I am using BLUEYAD." },
+  lastSeen: { type: Date, default: Date.now },
+  isOnline: { type: Boolean, default: false },
+});
 
-// Pre-populate with default users for testing
-const initUsers = async () => {
-  const adminPassword = await bcrypt.hash("admin123", 10);
-  const bobPassword = await bcrypt.hash("password123", 10);
-  
-  users.push({
-    id: "admin_id",
-    name: "Admin User",
-    email: "admin@blueyad.com",
-    password: adminPassword,
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin",
-    about: "I am the system administrator.",
-    lastSeen: new Date(),
-    isOnline: false,
-  });
+const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
-  users.push({
-    id: "bob_id",
-    name: "Bob Builder",
-    email: "bob@blueyad.com",
-    password: bobPassword,
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bob",
-    about: "Can we fix it? Yes we can!",
-    lastSeen: new Date(),
-    isOnline: false,
+const MessageSchema = new mongoose.Schema({
+  senderId: { type: String, required: true },
+  receiverId: { type: String, required: true },
+  text: String,
+  imageUrl: String,
+  conversationId: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now },
+  status: { type: String, default: "sent" },
+  reactions: [{ userId: String, reaction: String }]
+});
+
+const Message = mongoose.models.Message || mongoose.model("Message", MessageSchema);
+
+const ConversationSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  participants: [String],
+  lastMessage: String,
+  updatedAt: { type: Date, default: Date.now },
+  isGroup: { type: Boolean, default: false },
+  name: String
+});
+
+const Conversation = mongoose.models.Conversation || mongoose.model("Conversation", ConversationSchema);
+
+// --- AUTH MIDDLEWARE ---
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return res.sendStatus(401);
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
   });
 };
-initUsers();
+
+// --- SEED ADMIN USER ---
+const seedAdmin = async () => {
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@blueyad.com";
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+
+  try {
+    const existingAdmin = await User.findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      await User.create({
+        name: "Admin User",
+        email: adminEmail,
+        password: hashedPassword,
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin",
+        about: "System Administrator",
+      });
+      console.log("✅ Admin user seeded");
+    }
+  } catch (err) {
+    console.error("Error seeding admin:", err);
+  }
+};
+
+if (MONGODB_URI) seedAdmin();
 
 // --- AUTH ROUTES ---
 app.post("/api/auth/register", async (req, res) => {
   const { name, email, password } = req.body;
-  if (users.find(u => u.email === email)) {
-    return res.status(400).json({ message: "User already exists" });
+  try {
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ message: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+    });
+    const token = jwt.sign({ id: newUser._id }, JWT_SECRET);
+    res.json({ token, user: { id: newUser._id, name, email, avatar: newUser.avatar, about: newUser.about } });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = {
-    id: Math.random().toString(36).substr(2, 9),
-    name,
-    email,
-    password: hashedPassword,
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
-    about: "Hey there! I am using BLUEYAD.",
-    lastSeen: new Date(),
-    isOnline: false,
-  };
-  users.push(newUser);
-  const token = jwt.sign({ id: newUser.id }, JWT_SECRET);
-  res.json({ token, user: { id: newUser.id, name, email, avatar: newUser.avatar, about: newUser.about } });
 });
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
-  const user = users.find(u => u.email === email);
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(400).json({ message: "Invalid credentials" });
+  try {
+    const user = await User.findOne({ email });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+    const token = jwt.sign({ id: user._id }, JWT_SECRET);
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar, about: user.about } });
+  } catch (err) {
+    res.status(500).json({ message: "Login failed" });
   }
-  const token = jwt.sign({ id: user.id }, JWT_SECRET);
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar, about: user.about } });
 });
 
 // --- USER ROUTES ---
-app.get("/api/users", (req, res) => {
+app.get("/api/users", authenticateToken, async (req, res) => {
   const query = req.query.search as string;
-  if (query) {
-    const filtered = users.filter(u => u.name.toLowerCase().includes(query.toLowerCase()));
-    return res.json(filtered);
+  try {
+    let filter = {};
+    if (query) {
+      filter = { name: { $regex: query, $options: "i" } };
+    }
+    const users = await User.find(filter, "-password");
+    res.json(users.map((u: any) => ({
+      id: u._id,
+      name: u.name,
+      email: u.email,
+      avatar: u.avatar,
+      about: u.about,
+      isOnline: u.isOnline,
+      lastSeen: u.lastSeen
+    })));
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch users" });
   }
-  res.json(users);
 });
 
 // --- CONVERSATION ROUTES ---
-app.get("/api/conversations", (req, res) => {
-  const userId = req.headers["user-id"] as string;
-  const userConvos = conversations.filter(c => c.participants.includes(userId));
-  res.json(userConvos);
+app.get("/api/conversations", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const userConvos = await Conversation.find({ participants: userId });
+    res.json(userConvos);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch conversations" });
+  }
 });
 
 // --- MESSAGE ROUTES ---
-app.get("/api/messages/:conversationId", (req, res) => {
+app.get("/api/messages/:conversationId", authenticateToken, async (req, res) => {
   const { conversationId } = req.params;
-  const convoMessages = messages.filter(m => m.conversationId === conversationId);
-  res.json(convoMessages);
+  try {
+    const convoMessages = await Message.find({ conversationId });
+    res.json(convoMessages);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch messages" });
+  }
 });
 
 // --- SOCKET.IO LOGIC ---
 const userSockets = new Map();
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  socket.on("join", (userId) => {
+  socket.on("join", async (userId) => {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.warn(`Invalid userId received in join: ${userId}`);
+      return;
+    }
     userSockets.set(userId, socket.id);
-    const user = users.find(u => u.id === userId);
-    if (user) {
-      user.isOnline = true;
+    try {
+      await User.findByIdAndUpdate(userId, { isOnline: true });
       io.emit("user_status", { userId, isOnline: true });
+    } catch (err) {
+      console.error("Error in join socket handler:", err);
     }
   });
 
-  socket.on("send_message", (data) => {
+  socket.on("send_message", async (data) => {
     const { senderId, receiverId, text, imageUrl, conversationId, isGroup } = data;
     
-    const newMessage = {
-      id: Math.random().toString(36).substr(2, 9),
-      senderId,
-      receiverId,
-      text,
-      imageUrl,
-      conversationId,
-      timestamp: new Date(),
-      status: "sent",
-      reactions: []
-    };
-    
-    messages.push(newMessage);
-
-    // Update or create conversation
-    let convo = conversations.find(c => c.id === conversationId);
-    if (!convo) {
-      convo = {
-        id: conversationId,
-        participants: [senderId, receiverId],
-        lastMessage: text || "Image",
-        updatedAt: new Date(),
-        isGroup: isGroup || false,
-        name: isGroup ? data.groupName : null
-      };
-      conversations.push(convo);
-    } else {
-      convo.lastMessage = text || "Image";
-      convo.updatedAt = new Date();
+    if (!mongoose.Types.ObjectId.isValid(senderId) || (!isGroup && !mongoose.Types.ObjectId.isValid(receiverId))) {
+      console.warn("Invalid senderId or receiverId in send_message");
+      return;
     }
 
-    // Emit to receiver if online
-    if (isGroup) {
-      socket.to(conversationId).emit("receive_message", newMessage);
-    } else {
-      const receiverSocketId = userSockets.get(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("receive_message", newMessage);
+    try {
+      const newMessage = await Message.create({
+        senderId,
+        receiverId,
+        text,
+        imageUrl,
+        conversationId,
+        status: "sent",
+        reactions: []
+      });
+      
+      await Conversation.findOneAndUpdate(
+        { id: conversationId },
+        { 
+          participants: [senderId, receiverId],
+          lastMessage: text || "Image",
+          updatedAt: new Date(),
+          isGroup: isGroup || false,
+          name: isGroup ? data.groupName : null
+        },
+        { upsert: true, new: true }
+      );
+
+      if (isGroup) {
+        socket.to(conversationId).emit("receive_message", newMessage);
+      } else {
+        const receiverSocketId = userSockets.get(receiverId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("receive_message", newMessage);
+        }
       }
+      socket.emit("message_sent", newMessage);
+    } catch (err) {
+      console.error("Socket send_message error:", err);
     }
-    
-    // Send back to sender for confirmation
-    socket.emit("message_sent", newMessage);
   });
 
   socket.on("typing", (data) => {
     const { senderId, receiverId, conversationId } = data;
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) return;
     const receiverSocketId = userSockets.get(receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("user_typing", { senderId, conversationId });
     }
   });
 
-  socket.on("react", (data) => {
+  socket.on("react", async (data) => {
     const { messageId, reaction, userId } = data;
-    const msg = messages.find(m => m.id === messageId);
-    if (msg) {
-      if (!msg.reactions) msg.reactions = [];
-      msg.reactions.push({ userId, reaction });
+    if (!mongoose.Types.ObjectId.isValid(messageId)) return;
+    try {
+      await Message.findByIdAndUpdate(messageId, {
+        $push: { reactions: { userId, reaction } }
+      });
       io.emit("message_reaction", { messageId, reaction, userId });
+    } catch (err) {
+      console.error("Socket react error:", err);
     }
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     for (const [userId, socketId] of userSockets.entries()) {
       if (socketId === socket.id) {
         userSockets.delete(userId);
-        const user = users.find(u => u.id === userId);
-        if (user) {
-          user.isOnline = false;
-          user.lastSeen = new Date();
-          io.emit("user_status", { userId, isOnline: false, lastSeen: user.lastSeen });
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+          const lastSeen = new Date();
+          await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen });
+          io.emit("user_status", { userId, isOnline: false, lastSeen });
         }
         break;
       }
@@ -235,5 +305,16 @@ async function startServer() {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
+
+// Global Error Handler for Mongoose CastErrors
+app.use((err: any, req: any, res: any, next: any) => {
+  if (err.name === 'CastError' && err.kind === 'ObjectId') {
+    return res.status(400).json({
+      message: 'Invalid ID format',
+      error: err.message
+    });
+  }
+  next(err);
+});
 
 startServer();
